@@ -1,6 +1,8 @@
 mod api;
 mod aelira;
 mod config;
+mod socket;
+mod managers;
 
 use std::fs;
 use config::Config;
@@ -56,6 +58,8 @@ async fn async_main(config: Config) {
 
     let routes = api::routes::all_routes(aelira.clone())
         .recover(api::handle_rejection);
+
+    println!("Aelira v{} started on http://{}", aelira.version, addr);
 
     warp::serve(routes)
         .run(addr)

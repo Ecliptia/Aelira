@@ -1,10 +1,12 @@
 use std::sync::{Arc, Mutex};
 use sysinfo::{System, RefreshKind, CpuRefreshKind, MemoryRefreshKind};
+use crate::managers::sessions::SessionManager;
 
 pub struct Aelira {
     pub version: String,
     pub password: Option<String>,
     pub system: Arc<Mutex<System>>,
+    pub sessions: Mutex<SessionManager>,
 }
 
 impl Aelira {
@@ -19,6 +21,7 @@ impl Aelira {
             version,
             password: config.server.password.clone(),
             system: Arc::new(Mutex::new(system)),
+            sessions: Mutex::new(SessionManager::new()),
         }
     }
 }
