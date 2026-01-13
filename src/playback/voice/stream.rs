@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 use futures_util::StreamExt;
 use crate::playback::voice::udp::VoiceUdp;
 use crate::playback::voice::crypto::VoiceCrypto;
+use crate::utils::{log, Level};
 
 const FRAME_DURATION: u64 = 20;
 
@@ -34,16 +35,16 @@ impl AudioStream {
                     let mut udp = self.udp.lock().await;
                     udp.send_opus(&frame, &self.crypto).await;
                     count += 1;
-                    if count % 50 == 0 {
-                        println!("[Stream] Successfully sent 50 frames (Total: {})", count);
+                    if count % 500 == 0 {
+                        log(Level::Debug, "AudioStream", format!("Sent {} frames", count));
                     }
                 }
                 Some(Err(e)) => {
-                    println!("[Stream] Error while reading frame from source: {}", e);
+                    log(Level::Error, "AudioStream", format!("Error reading frame: {}", e));
                     break;
                 },
                 None => {
-                    println!("[Stream] Source stream reached EOF (None)");
+                    log(Level::Debug, "AudioStream", "Source reached EOF");
                     break;
                 },
             }

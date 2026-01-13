@@ -1,6 +1,7 @@
 use bytes::{Buf, BytesMut, Bytes};
 use tokio_util::codec::Decoder;
 use std::io;
+use crate::utils::{log, Level};
 
 const OPUS_HEAD: &[u8] = b"OpusHead";
 
@@ -79,11 +80,8 @@ impl Decoder for WebmOpusDemuxer {
 
             let total_header_len = id_len + size_len;
 
-            println!("[Demuxer] ID: {:X}, Size: {}, ID Len: {}, Size Len: {}", id, size, id_len, size_len);
-
             match id {
                 EBML_HEADER | SEGMENT | CLUSTER | TRACKS | TRACK_ENTRY => {
-                    println!("[Demuxer] Entering container: {:X}", id);
                     src.advance(total_header_len);
                     if id == TRACK_ENTRY {
                         self.pending_track_number = 0;
@@ -100,8 +98,6 @@ impl Decoder for WebmOpusDemuxer {
                         num = (num << 8) | (src[i] as u64);
                     }
                     self.pending_track_number = num;
-                    println!("[Demuxer] Pending Track Number: {}", num);
-                    
                     src.advance(size); 
                 },
                 TRACK_TYPE => {
@@ -113,11 +109,10 @@ impl Decoder for WebmOpusDemuxer {
                         typ = (typ << 8) | (src[i] as u64);
                     }
                     self.pending_track_type = typ;
-                    println!("[Demuxer] Pending Track Type: {}", typ);
                     
                     if self.pending_track_type == 2 { 
                         self.current_track_number = Some(self.pending_track_number);
-                        println!("[Demuxer] Successfully selected Audio Track: {}", self.pending_track_number);
+                        log(Level::Debug, "WebmDemuxer", format!("Audio track selected: {}", self.pending_track_number));
                     }
                     src.advance(size);
                 },
@@ -125,7 +120,7 @@ impl Decoder for WebmOpusDemuxer {
                     if src.len() < total_header_len + size { return Ok(None); }
                     src.advance(total_header_len);
                     if size >= 8 && &src[0..8] == OPUS_HEAD {
-                        println!("[Demuxer] Found Opus Private Data Header");
+                        log(Level::Debug, "WebmDemuxer", "Opus private data found");
                     }
                     src.advance(size);
                 },
@@ -136,7 +131,6 @@ impl Decoder for WebmOpusDemuxer {
                     let (track_num, track_len) = match Self::read_vint(src, false) {
                         Some(v) => v,
                         None => { 
-                            println!("[Demuxer] Failed to read track number in SimpleBlock");
                             src.advance(size); 
                             continue; 
                         }
@@ -145,19 +139,16 @@ impl Decoder for WebmOpusDemuxer {
                     if Some(track_num) == self.current_track_number {
                         let header_skip = track_len + 3;
                         let payload = src.copy_to_bytes(size).slice(header_skip..);
-                        // println!("[Demuxer] Extracted frame: {} bytes", payload.len());
                         return Ok(Some(payload));
                     } else {
                         src.advance(size);
                     }
                 },
                 VOID => {
-                     println!("[Demuxer] Skipping Void element");
                      src.advance(total_header_len);
                      self.skip_len = size;
                 },
                 _ => {
-                    println!("[Demuxer] Unknown ID: {:X}, skipping {} bytes", id, size);
                     src.advance(total_header_len);
                     self.skip_len = size;
                 }

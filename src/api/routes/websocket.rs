@@ -24,12 +24,8 @@ pub fn handler(aelira: AeliraRef) -> impl Filter<Extract = (impl warp::Reply,), 
                  return warp::reply::with_status("Invalid User ID", StatusCode::BAD_REQUEST).into_response();
             }
 
-                        ws.on_upgrade(move |socket| async move {
-
-                            crate::socket::handle_socket(socket, client_name, user_id, session_id, aelira).await;
-
-                        }).into_response()
-
-            
+            ws.on_upgrade(move |socket| async move {
+                crate::socket::handle_socket(socket, client_name, user_id, session_id, aelira).await;
+            }).into_response()
         })
 }
