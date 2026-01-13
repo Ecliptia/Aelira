@@ -71,7 +71,6 @@ workers = 0 # 0 = Auto-detect
 ## How it Works
 
 - **Orchestration (Rust):** Handles sessions, players, API routes, and logic safety.
-- **Audio Engine (C):** Manages low-level audio tasks like codecs, DSP, and resampling.
 
 ## License
 

@@ -11,9 +11,9 @@ pub fn handler(aelira: AeliraRef) -> impl Filter<Extract = (impl warp::Reply,), 
         .and(warp::header::header("authorization"))
         .and(warp::header::header("user-id"))
         .and(warp::header::header("client-name"))
+        .and(warp::header::optional::<String>("session-id"))
         .and(with_aelira)
-        .map(|ws: warp::ws::Ws, auth: String, user_id: String, client_name: String, aelira: AeliraRef| {
-
+        .map(|ws: warp::ws::Ws, auth: String, user_id: String, client_name: String, session_id: Option<String>, aelira: AeliraRef| {
             if let Some(pass) = &aelira.password {
                 if *pass != auth {
                     return warp::reply::with_status("Unauthorized", StatusCode::UNAUTHORIZED).into_response();
@@ -24,8 +24,12 @@ pub fn handler(aelira: AeliraRef) -> impl Filter<Extract = (impl warp::Reply,), 
                  return warp::reply::with_status("Invalid User ID", StatusCode::BAD_REQUEST).into_response();
             }
 
-            ws.on_upgrade(move |socket| async move {
-                crate::socket::handle_socket(socket, client_name, user_id, aelira).await;
-            }).into_response()
+                        ws.on_upgrade(move |socket| async move {
+
+                            crate::socket::handle_socket(socket, client_name, user_id, session_id, aelira).await;
+
+                        }).into_response()
+
+            
         })
 }

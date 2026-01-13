@@ -1,18 +1,20 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use warp::ws::Message;
 use rand::{distr::Alphanumeric, Rng};
+use crate::managers::players::PlayerManager;
 
 pub struct Session {
     pub id: String,
     pub user_id: String,
-    pub client_name: String,
-    pub sender: mpsc::UnboundedSender<Message>,
+    pub _client_name: String,
+    pub sender: Mutex<mpsc::UnboundedSender<Message>>,
+    pub players: Mutex<PlayerManager>,
 }
 
 pub struct SessionManager {
-    sessions: HashMap<String, Arc<Session>>,
+    pub sessions: HashMap<String, Arc<Session>>,
 }
 
 impl SessionManager {
@@ -37,11 +39,21 @@ impl SessionManager {
         let session = Arc::new(Session {
             id: id.clone(),
             user_id,
-            client_name,
-            sender,
+            _client_name: client_name,
+            sender: Mutex::new(sender),
+            players: Mutex::new(PlayerManager::new()),
         });
 
         self.sessions.insert(id, session.clone());
         session
+    }
+
+    pub fn resume(&self, session_id: &str, new_sender: mpsc::UnboundedSender<Message>) -> Option<Arc<Session>> {
+        if let Some(session) = self.sessions.get(session_id) {
+            let mut sender = session.sender.lock().unwrap();
+            *sender = new_sender;
+            return Some(session.clone());
+        }
+        None
     }
 }

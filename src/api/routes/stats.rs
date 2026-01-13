@@ -32,34 +32,29 @@ struct StatsResponse {
 
 pub fn handler(aelira: AeliraRef) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     let with_aelira = warp::any().map(move || aelira.clone());
-
     warp::get()
         .and(with_aelira)
         .map(|aelira: AeliraRef| {
             let sys = aelira.system.lock().unwrap();
-
             let memory = MemoryStats {
                 free: sys.free_memory(),
                 used: sys.used_memory(),
                 allocated: sys.used_memory(),
                 reservable: sys.total_memory(),
             };
-
             let cpu = CpuStats {
                 cores: sys.cpus().len(),
                 system_load: sys.global_cpu_usage(),
                 aelira_load: 0.0,
             };
-
             let stats = StatsResponse {
-                players: 0,
-                playing_players: 0,
-                uptime: System::uptime(),
+                players: aelira.stats.players.load(std::sync::atomic::Ordering::Relaxed),
+                playing_players: aelira.stats.playing_players.load(std::sync::atomic::Ordering::Relaxed),
+                uptime: System::uptime() * 1000,
                 memory,
                 cpu,
                 frame_stats: None,
             };
-
             warp::reply::json(&stats)
         })
 }
